@@ -33,7 +33,7 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-static signed char buffer[1084]; // 177704 byte
+static signed char buffer[114688]; // 177704 byte
 signed char out_int[OUTPUT_CH];
 uint16_t *RGBbuf;
 
@@ -114,14 +114,13 @@ int main(void)
 
     /* Initialize LCD */
     lcdsetup();
-
     /* TfLite Initialization Code */
   	static tflite::MicroErrorReporter micro_error_reporter;
   	error_reporter = &micro_error_reporter;
 
   	// Map the model into a usable data structure. This doesn't involve any
   	// copying or parsing, it's a very lightweight operation.
-    model = tflite::GetModel(saved_model_quant_tflite);
+    model = tflite::GetModel(sine_model);
 
   	if(model->version() != TFLITE_SCHEMA_VERSION)
   	{
@@ -140,6 +139,7 @@ int main(void)
   	interpreter = &static_interpreter;
 
   	// Allocate memory from the tensor_arena for the model's tensors.
+    // 2023-09-12 기준 saved_model은 텐서 아레나 문제로 interpreter->AllocateTensors() 하위 코드가 실행되지 않는 문제가 확인되었음.
   	TfLiteStatus allocate_status = interpreter->AllocateTensors();
   	if (allocate_status != kTfLiteOk)
   	{
@@ -196,39 +196,25 @@ int main(void)
 
         /* Camera Read */
         start = HAL_GetTick();
-           ReadCapture();
-           StartCapture();
+        ReadCapture();
+        StartCapture();
 
-           drawRedBackground(1, 480, 1, 280);
-           DecodeandProcessAndRGB(RES_W, RES_H, input, RGBbuf, 1); // 현재 이 부분에서 문제가 있음
+        DecodeandProcessAndRGB(RES_W, RES_H, input, RGBbuf, 1);
 
-           for (int i = 0; i < RES_W; i++) {
-             for (int j = 0; j < RES_W; j++) {
-               uint8_t red = (int32_t)input[(80 * i + j) * 3] + 128;
-               uint8_t green = (int32_t)input[(80 * i + j) * 3 + 1] + 128;
-               uint8_t blue = (int32_t)input[(80 * i + j) * 3 + 2] + 128;
+        for (int i = 0; i < RES_W; i++) {
+          for (int j = 0; j < RES_W; j++) {
+            uint8_t red = (int32_t)input[(80 * i + j) * 3] + 128;
+            uint8_t green = (int32_t)input[(80 * i + j) * 3 + 1] + 128;
+            uint8_t blue = (int32_t)input[(80 * i + j) * 3 + 2] + 128;
 
-               uint16_t b = (blue >> 3) & 0x1f;
-               uint16_t g = ((green >> 2) & 0x3f) << 5;
-               uint16_t r = ((red >> 3) & 0x1f) << 11;
+            uint16_t b = (blue >> 3) & 0x1f;
+            uint16_t g = ((green >> 2) & 0x3f) << 5;
+            uint16_t r = ((red >> 3) & 0x1f) << 11;
 
-               RGBbuf[j + RES_W * i] = (uint16_t)(r | g | b);
-             }
-           }
-//           loadRGB565LCD(10, 10, RES_W, RES_W, RGBbuf, 3);
-
-//	         	invoke_new_weights_givenimg(out_int);
-//	         	int person = 0;
-//	         	if (out_int[0] > out_int[1]) {
-//	         	  person = 0;
-//	         	}
-//	         	else {
-//	         	  person = 1;
-//	         	}
-//			end = HAL_GetTick();
-//			sprintf(showbuf, " Inference ");
-//			displaystring(showbuf, 273, 10);
-//			detectResponse(1, end - start, t_mode, 0, 0);
+            RGBbuf[j + RES_W * i] = (uint16_t)(r | g | b);
+          }
+        }
+        loadRGB565LCD(10, 10, RES_W, RES_W, RGBbuf, 3);
     }
 }
 
