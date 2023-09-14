@@ -68,7 +68,7 @@ const uint16_t INFERENCE_PER_CYCLE = 70;
 
 // UART handler declaration
 UART_HandleTypeDef DebugUartHandler;
-
+UART_HandleTypeDef huart6;
 
 /* Private function prototypes -----------------------------------------------*/
 static void system_clock_config(void);
@@ -87,6 +87,39 @@ static void Error_Handler(void);
   * @brief  The application entry point.
   * @retval int
   */
+/** add for Bluetooth code **/
+
+
+static void MX_USART6_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART6_Init 0 */
+
+  /* USER CODE END USART6_Init 0 */
+
+  /* USER CODE BEGIN USART6_Init 1 */
+
+  /* USER CODE END USART6_Init 1 */
+  huart6.Instance = USART6;
+  huart6.Init.BaudRate = 9600;
+  huart6.Init.WordLength = UART_WORDLENGTH_8B;
+  huart6.Init.StopBits = UART_STOPBITS_1;
+  huart6.Init.Parity = UART_PARITY_NONE;
+  huart6.Init.Mode = UART_MODE_TX_RX;
+  huart6.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart6.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart6.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart6.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart6) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART6_Init 2 */
+
+  /* USER CODE END USART6_Init 2 */
+
+}
+
 
 int main(void)
 {
@@ -166,10 +199,14 @@ int main(void)
     RGBbuf = (uint16_t *)&input[80 * 80 * 4]; // input[25600]의 주소를 RGBbuf에 uint16_t의 포인터 형태로 저장
     int t_mode = 0;
 
-
+    /* bluetooth setup */
+    MX_USART6_UART_Init();
+    uint8_t message[10] = "success\n";
     /* Infinity while loop */
     while (1)
     {
+    	HAL_UART_Transmit(&huart6, message, 8, 10);
+    	// HAL_UART_Transmit(&DebugUartHandler, &message, 1, 10);
 //	    // Calculate an x value to feed into the model
 //        for(uint16_t inferenceCount = 0; inferenceCount <= INFERENCE_PER_CYCLE; inferenceCount++)
 //        {
@@ -545,6 +582,17 @@ static void MX_GPIO_Init(void) {
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(BUTTON2_GPIO_Port, &GPIO_InitStruct);
+
+  /* add for bluetooth */
+  GPIO_InitStruct.Pin = GPIO_PIN_6;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  GPIO_InitStruct.Pin = GPIO_PIN_7;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 }
 
 void SystemClock_Config(void) {
