@@ -53,7 +53,7 @@ namespace
     // Finding the minimum value for your model may require some trial and error.
     // STM32F746G-DISCOVERY에서 할당 가능한 최댓값 : 32 * 21 * 1024 = 688_128
     // [2023-09-19] saved model 터진다... -> 텐서 아레나 크기를 최대로 당겨도 인터프리터에 텐서 아레나가 제대로 할당되지 않음
-    constexpr uint32_t kTensorArenaSize = 21 * 1024;
+    constexpr uint32_t kTensorArenaSize = 1 * 1024;
     uint8_t tensor_arena[kTensorArenaSize];
 } // namespace
 
@@ -159,7 +159,7 @@ int main(void)
 
   	// Map the model into a usable data structure. This doesn't involve any
   	// copying or parsing, it's a very lightweight operation.
-    model = tflite::GetModel(saved_model_quant_tflite);
+    model = tflite::GetModel(saved_model);
 
   	if(model->version() != TFLITE_SCHEMA_VERSION)
   	{
@@ -193,7 +193,9 @@ int main(void)
     // We are dividing the whole input range with the number of inference
     // per cycle we want to show to get the unit value. We will then multiply
     // the unit value with the current position of the inference
-    float unitValuePerDevision = INPUT_RANGE / static_cast<float>(INFERENCE_PER_CYCLE);
+
+  	// sine model code //
+    // float unitValuePerDevision = INPUT_RANGE / static_cast<float>(INFERENCE_PER_CYCLE);
 
 
     /* Arducam Camera Setup */
