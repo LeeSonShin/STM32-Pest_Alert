@@ -33,7 +33,11 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-static signed char buffer[114688]; // 177704 byte
+// for debuging
+// static signed char buffer[114688]; // 177704 byte
+// for test only
+static signed char buffer[1];
+
 signed char out_int[OUTPUT_CH];
 uint16_t *RGBbuf;
 
@@ -47,7 +51,9 @@ namespace
 
     // Create an area of memory to use for input, output, and intermediate arrays.
     // Finding the minimum value for your model may require some trial and error.
-    constexpr uint32_t kTensorArenaSize = 2 * 1024;
+    // STM32F746G-DISCOVERY에서 할당 가능한 최댓값 : 32 * 21 * 1024 = 688_128
+    // [2023-09-19] saved model 터진다... -> 텐서 아레나 크기를 최대로 당겨도 인터프리터에 텐서 아레나가 제대로 할당되지 않음
+    constexpr uint32_t kTensorArenaSize = 21 * 1024;
     uint8_t tensor_arena[kTensorArenaSize];
 } // namespace
 
@@ -153,7 +159,7 @@ int main(void)
 
   	// Map the model into a usable data structure. This doesn't involve any
   	// copying or parsing, it's a very lightweight operation.
-    model = tflite::GetModel(sine_model);
+    model = tflite::GetModel(saved_model_quant_tflite);
 
   	if(model->version() != TFLITE_SCHEMA_VERSION)
   	{
@@ -170,16 +176,16 @@ int main(void)
   	// Build an interpreter to run the model with.
   	static tflite::MicroInterpreter static_interpreter(model, resolver, tensor_arena, kTensorArenaSize, error_reporter);
   	interpreter = &static_interpreter;
-
   	// Allocate memory from the tensor_arena for the model's tensors.
-    // 2023-09-12 기준 saved_model은 텐서 아레나 문제로 interpreter->AllocateTensors() 하위 코드가 실행되지 않는 문제가 확인되었음.
   	TfLiteStatus allocate_status = interpreter->AllocateTensors();
+    // [2023-09-19] 텐서 아레나가 정상적으로 선언되지 않으면 아래 if문에서 return 되어버림.
   	if (allocate_status != kTfLiteOk)
   	{
   	    TF_LITE_REPORT_ERROR(error_reporter, "AllocateTensors() failed");
+  	  	drawRedBackground(270, 480, 40, 100);
   	    return 0;
   	}
-
+  	drawGreenBackground(270, 480, 40, 100);
   	// Obtain pointers to the model's input and output tensors.
   	model_input = interpreter->input(0);
   	model_output = interpreter->output(0);
@@ -232,26 +238,26 @@ int main(void)
 //        }
 
         /* Camera Read */
-        start = HAL_GetTick();
-        ReadCapture();
-        StartCapture();
-
-        DecodeandProcessAndRGB(RES_W, RES_H, input, RGBbuf, 1);
-
-        for (int i = 0; i < RES_W; i++) {
-          for (int j = 0; j < RES_W; j++) {
-            uint8_t red = (int32_t)input[(80 * i + j) * 3] + 128;
-            uint8_t green = (int32_t)input[(80 * i + j) * 3 + 1] + 128;
-            uint8_t blue = (int32_t)input[(80 * i + j) * 3 + 2] + 128;
-
-            uint16_t b = (blue >> 3) & 0x1f;
-            uint16_t g = ((green >> 2) & 0x3f) << 5;
-            uint16_t r = ((red >> 3) & 0x1f) << 11;
-
-            RGBbuf[j + RES_W * i] = (uint16_t)(r | g | b);
-          }
-        }
-        loadRGB565LCD(10, 10, RES_W, RES_W, RGBbuf, 3);
+//        start = HAL_GetTick();
+//        ReadCapture();
+//        StartCapture();
+//
+//        DecodeandProcessAndRGB(RES_W, RES_H, input, RGBbuf, 1);
+//
+//        for (int i = 0; i < RES_W; i++) {
+//          for (int j = 0; j < RES_W; j++) {
+//            uint8_t red = (int32_t)input[(80 * i + j) * 3] + 128;
+//            uint8_t green = (int32_t)input[(80 * i + j) * 3 + 1] + 128;
+//            uint8_t blue = (int32_t)input[(80 * i + j) * 3 + 2] + 128;
+//
+//            uint16_t b = (blue >> 3) & 0x1f;
+//            uint16_t g = ((green >> 2) & 0x3f) << 5;
+//            uint16_t r = ((red >> 3) & 0x1f) << 11;
+//
+//            RGBbuf[j + RES_W * i] = (uint16_t)(r | g | b);
+//          }
+//        }
+//        loadRGB565LCD(10, 10, RES_W, RES_W, RGBbuf, 3);
     }
 }
 

@@ -200,13 +200,10 @@ int DecodeandProcessAndRGB(int image_width, int image_height,
 
   uint16_t color;
 
-  // 아래 for loop에서 문제가 발생한 듯 하다.
-  // 현재 입력은 image_height = 80, image_width = 80, scale_factor = 1이므로
-  // 80 * 80 * 3 = 19200 -> 문제될 수가 없는 값인데???
   for (int i = 0;
        i < (image_height / scale_factor) * (image_width / scale_factor) * 3;
        i++) {
-	  image_data[i] = -128; // 이 부분이 문제이다. array 범위로 인한 문제로 추정된다.
+	  image_data[i] = -128;
   }
 
   while (JpegDec.read()) {
