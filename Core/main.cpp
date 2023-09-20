@@ -34,9 +34,11 @@
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 // for debuging
-// static signed char buffer[114688]; // 177704 byte
+// 80 * 80 : 44800
+// 128 * 128 : 114688
+ static signed char buffer[44800]; // 177704 byte
 // for test only
-static signed char buffer[1];
+//static signed char buffer[1];
 
 signed char out_int[OUTPUT_CH];
 uint16_t *RGBbuf;
@@ -53,7 +55,7 @@ namespace
     // Finding the minimum value for your model may require some trial and error.
     // STM32F746G-DISCOVERY에서 할당 가능한 최댓값 : 32 * 21 * 1024 = 688_128
     // [2023-09-19] saved model 터진다... -> 텐서 아레나 크기를 최대로 당겨도 인터프리터에 텐서 아레나가 제대로 할당되지 않음
-    constexpr uint32_t kTensorArenaSize = 1 * 1024;
+    constexpr uint32_t kTensorArenaSize = 2 * 1024;
     uint8_t tensor_arena[kTensorArenaSize];
 } // namespace
 
@@ -159,7 +161,7 @@ int main(void)
 
   	// Map the model into a usable data structure. This doesn't involve any
   	// copying or parsing, it's a very lightweight operation.
-    model = tflite::GetModel(saved_model);
+    model = tflite::GetModel(sine_model);
 
   	if(model->version() != TFLITE_SCHEMA_VERSION)
   	{
@@ -204,7 +206,7 @@ int main(void)
     uint32_t start, end;
     StartCapture();
     signed char * input = getInput(); // signed char buffer[1084], input = buffer
-    RGBbuf = (uint16_t *)&input[80 * 80 * 4]; // input[25600]의 주소를 RGBbuf에 uint16_t의 포인터 형태로 저장
+    RGBbuf = (uint16_t *)&input[RES_H * RES_W * 4]; // input[25600]의 주소를 RGBbuf에 uint16_t의 포인터 형태로 저장
     int t_mode = 0;
 
     /* bluetooth setup */
@@ -240,26 +242,26 @@ int main(void)
 //        }
 
         /* Camera Read */
-//        start = HAL_GetTick();
-//        ReadCapture();
-//        StartCapture();
-//
-//        DecodeandProcessAndRGB(RES_W, RES_H, input, RGBbuf, 1);
-//
-//        for (int i = 0; i < RES_W; i++) {
-//          for (int j = 0; j < RES_W; j++) {
-//            uint8_t red = (int32_t)input[(80 * i + j) * 3] + 128;
-//            uint8_t green = (int32_t)input[(80 * i + j) * 3 + 1] + 128;
-//            uint8_t blue = (int32_t)input[(80 * i + j) * 3 + 2] + 128;
-//
-//            uint16_t b = (blue >> 3) & 0x1f;
-//            uint16_t g = ((green >> 2) & 0x3f) << 5;
-//            uint16_t r = ((red >> 3) & 0x1f) << 11;
-//
-//            RGBbuf[j + RES_W * i] = (uint16_t)(r | g | b);
-//          }
-//        }
-//        loadRGB565LCD(10, 10, RES_W, RES_W, RGBbuf, 3);
+        start = HAL_GetTick();
+        ReadCapture();
+        StartCapture();
+
+        DecodeandProcessAndRGB(RES_W, RES_H, input, RGBbuf, 1);
+
+        for (int i = 0; i < RES_W; i++) {
+          for (int j = 0; j < RES_W; j++) {
+            uint8_t red = (int32_t)input[(RES_W * i + j) * 3] + 128;
+            uint8_t green = (int32_t)input[(RES_W * i + j) * 3 + 1] + 128;
+            uint8_t blue = (int32_t)input[(RES_W * i + j) * 3 + 2] + 128;
+
+            uint16_t b = (blue >> 3) & 0x1f;
+            uint16_t g = ((green >> 2) & 0x3f) << 5;
+            uint16_t r = ((red >> 3) & 0x1f) << 11;
+
+            RGBbuf[j + RES_W * i] = (uint16_t)(r | g | b);
+          }
+        }
+        loadRGB565LCD(10, 10, RES_W, RES_W, RGBbuf, 3);
     }
 }
 
