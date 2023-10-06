@@ -53,8 +53,6 @@ namespace
 
     // Create an area of memory to use for input, output, and intermediate arrays.
     // Finding the minimum value for your model may require some trial and error.
-    // STM32F746G-DISCOVERY에서 할당 가능한 최댓값 : 32 * 21 * 1024 = 688_128
-    // [2023-09-19] saved model 터진다... -> 텐서 아레나 크기를 최대로 당겨도 인터프리터에 텐서 아레나가 제대로 할당되지 않음
     constexpr uint32_t kTensorArenaSize = 2 * 1024;
     uint8_t tensor_arena[kTensorArenaSize];
 } // namespace
@@ -83,7 +81,7 @@ static void system_clock_config(void);
 static void cpu_cache_enable(void);
 static void error_handler(void);
 static void uart1_init(void);
-void handle_output(tflite::ErrorReporter* error_reporter, float x_value, float y_value);
+void handle_output(tflite::ErrorReporter* error_reporter, uint8_t beeScore, uint8_t butterflyScore, uint8_t mothScore, uint8_t stinkScore);
 signed char* getInput();
 static void MX_GPIO_Init(void);
 static void CPU_CACHE_Enable(void);
@@ -143,7 +141,6 @@ int main(void)
     SystemClock_Config();
 
    /* Initialize all configured peripherals */
-   /* 나중에 램 사용량 줄이기 위해 진짜 필요한 것 말고는 주석 처리 */
     MX_GPIO_Init();
     BSP_PB_Init(BUTTON_KEY, BUTTON_MODE_GPIO);
 
@@ -161,7 +158,7 @@ int main(void)
 
   	// Map the model into a usable data structure. This doesn't involve any
   	// copying or parsing, it's a very lightweight operation.
-    model = tflite::GetModel(sine_model);
+    model = tflite::GetModel(saved_model);
 
   	if(model->version() != TFLITE_SCHEMA_VERSION)
   	{
@@ -180,33 +177,33 @@ int main(void)
   	interpreter = &static_interpreter;
   	// Allocate memory from the tensor_arena for the model's tensors.
   	TfLiteStatus allocate_status = interpreter->AllocateTensors();
-    // [2023-09-19] 텐서 아레나가 정상적으로 선언되지 않으면 아래 if문에서 return 되어버림.
   	if (allocate_status != kTfLiteOk)
   	{
   	    TF_LITE_REPORT_ERROR(error_reporter, "AllocateTensors() failed");
-  	  	drawRedBackground(270, 480, 40, 100);
   	    return 0;
   	}
-  	drawGreenBackground(270, 480, 40, 100);
+
   	// Obtain pointers to the model's input and output tensors.
   	model_input = interpreter->input(0);
   	model_output = interpreter->output(0);
 
+  	// Index for model_output
+	const int beeIndex = 0;
+	const int butterflyIndex = 1;
+	const int mothIndex = 2;
+	const int stinkIndex = 3;
+
     // We are dividing the whole input range with the number of inference
     // per cycle we want to show to get the unit value. We will then multiply
     // the unit value with the current position of the inference
-
-  	// sine model code //
-    // float unitValuePerDevision = INPUT_RANGE / static_cast<float>(INFERENCE_PER_CYCLE);
-
 
     /* Arducam Camera Setup */
     int camErr = initCamera();
 
     uint32_t start, end;
     StartCapture();
-    signed char * input = getInput(); // signed char buffer[1084], input = buffer
-    RGBbuf = (uint16_t *)&input[RES_H * RES_W * 4]; // input[25600]의 주소를 RGBbuf에 uint16_t의 포인터 형태로 저장
+    signed char * input = getInput();
+    RGBbuf = (uint16_t *)&input[RES_H * RES_W * 4];
     int t_mode = 0;
 
     /* bluetooth setup */
@@ -215,32 +212,6 @@ int main(void)
     /* Infinity while loop */
     while (1)
     {
-    	HAL_UART_Transmit(&huart6, message, 8, 10);
-    	// HAL_UART_Transmit(&DebugUartHandler, &message, 1, 10);
-//	    // Calculate an x value to feed into the model
-//        for(uint16_t inferenceCount = 0; inferenceCount <= INFERENCE_PER_CYCLE; inferenceCount++)
-//        {
-//	        float x_val = static_cast<float>(inferenceCount) * unitValuePerDevision;
-//
-//	        // Place our calculated x value in the model's input tensor
-//	        model_input->data.f[0] = x_val;
-//
-//	        // Run inference, and report any error
-//	        TfLiteStatus invoke_status = interpreter->Invoke();
-//	        if (invoke_status != kTfLiteOk)
-//	        {
-//	            TF_LITE_REPORT_ERROR(error_reporter, "Invoke failed on x_val: %f\n", static_cast<float>(x_val));
-//	            return 0;
-//	        }
-//
-//	        // Read the predicted y value from the model's output tensor
-//	        float y_val = model_output->data.f[0];
-//
-//	        // Do something with the results
-//
-//	        // handle_output(error_reporter, x_val, y_val);
-//        }
-
         /* Camera Read */
         start = HAL_GetTick();
         ReadCapture();
@@ -248,11 +219,17 @@ int main(void)
 
         DecodeandProcessAndRGB(RES_W, RES_H, input, RGBbuf, 1);
 
+        // input tensor에 카메라 버퍼의 값 쓰기
         for (int i = 0; i < RES_W; i++) {
           for (int j = 0; j < RES_W; j++) {
-            uint8_t red = (int32_t)input[(RES_W * i + j) * 3] + 128;
-            uint8_t green = (int32_t)input[(RES_W * i + j) * 3 + 1] + 128;
-            uint8_t blue = (int32_t)input[(RES_W * i + j) * 3 + 2] + 128;
+        	int index = (i * RES_W + j) * 3;
+            uint8_t red = (int32_t)input[index] + 128;
+            uint8_t green = (int32_t)input[index + 1] + 128;
+            uint8_t blue = (int32_t)input[index + 2] + 128;
+
+            model_input->data.uint8[index] = red;
+            model_input->data.uint8[index + 1] = green;
+            model_input->data.uint8[index + 2] = blue;
 
             uint16_t b = (blue >> 3) & 0x1f;
             uint16_t g = ((green >> 2) & 0x3f) << 5;
@@ -262,18 +239,54 @@ int main(void)
           }
         }
         loadRGB565LCD(10, 10, RES_W, RES_W, RGBbuf, 3);
+
+		// Run inference, and report any error
+		TfLiteStatus invoke_status = interpreter->Invoke();
+		if (invoke_status != kTfLiteOk)
+		{
+			TF_LITE_REPORT_ERROR(error_reporter, "Invoke failed");
+			return 0;
+		}
+
+		// 블루투스 통신을 이용하여 모델 출력을 애플리케이션으로 전송
+		handle_output(error_reporter,
+					  model_output->data.uint8[beeIndex],
+					  model_output->data.uint8[butterflyIndex],
+					  model_output->data.uint8[mothIndex],
+					  model_output->data.uint8[stinkIndex]);
     }
 }
 
 
-void handle_output(tflite::ErrorReporter* error_reporter, float x_value, float y_value)
+void handle_output(tflite::ErrorReporter* error_reporter, uint8_t beeScore, uint8_t butterflyScore, uint8_t mothScore, uint8_t stinkScore)
 {
-	// Log the current X and Y values
-	TF_LITE_REPORT_ERROR(error_reporter, "x_value: %f, y_value: %f\n", x_value, y_value);
+	uint8_t bee_msg[6] = "bee\n";
+	uint8_t butterfly_msg[12] = "butterfly\n";
+	uint8_t moth_msg[7] = "moth\n";
+	uint8_t stink_msg[8] = "stink\n";
+	uint8_t none_msg[7] = "none\n";
 
-	// A custom function can be implemented and used here to do something with the x and y values.
-	// In my case I will be plotting sine wave on an LCD.
-	LCD_Output(x_value, y_value);
+	int max;
+	max = (beeScore > butterflyScore) ? beeScore : butterflyScore;
+	max = (max > mothScore) ? max : mothScore;
+	max = (max > stinkScore) ? max : stinkScore;
+	if(max > 0.6) {
+		if(max == beeScore) {
+			HAL_UART_Transmit(&huart6, bee_msg, 4, 6);
+		}
+		else if(max == butterflyScore) {
+			HAL_UART_Transmit(&huart6, butterfly_msg, 10, 12);
+		}
+		else if(max == mothScore) {
+			HAL_UART_Transmit(&huart6, moth_msg, 5, 7);
+		}
+		else if(max == stinkScore) {
+			HAL_UART_Transmit(&huart6, stink_msg, 6, 8);
+		}
+	}
+	else {
+		HAL_UART_Transmit(&huart6, none_msg, 5, 7);
+	}
 }
 
 signed char* getInput() { return &buffer[0]; }
