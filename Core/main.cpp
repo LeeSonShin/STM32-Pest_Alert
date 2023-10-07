@@ -33,12 +33,11 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-// for debuging
-// 80 * 80 : 44800
-// 128 * 128 : 114688
- static signed char buffer[44800]; // 177704 byte
-// for test only
-//static signed char buffer[1];
+/*  해상도에 따른 버퍼 크기 설정
+* -------------------------
+* | 80  * 80   : 44800    |
+* | 128 * 128 : 114688    | */
+ static signed char buffer[44800];
 
 signed char out_int[OUTPUT_CH];
 uint16_t *RGBbuf;
@@ -57,20 +56,7 @@ namespace
     uint8_t tensor_arena[kTensorArenaSize];
 } // namespace
 
-// This constant represents the range of x values our model was trained on,
-// which is from 0 to (2 * Pi). We approximate Pi to avoid requiring
-// additional libraries.
-extern const float INPUT_RANGE = 2.f * 3.14159265359f;
 // NOTE: extern is used because lcd.c also uses this variable.
-
-// This constant determines the number of inferences to perform across the range
-// of x values defined above. Since each inference takes time, the higher this
-// number, the more time it will take to run through the entire range. The value
-// of this constant can be tuned so that one full cycle takes a desired amount
-// of time. Since different devices take different amounts of time to perform
-// inference, this value should be defined per-device.
-// A larger number than the default to make the animation smoother
-const uint16_t INFERENCE_PER_CYCLE = 70;
 
 // UART handler declaration
 UART_HandleTypeDef DebugUartHandler;
@@ -129,8 +115,6 @@ static void MX_USART6_UART_Init(void)
 
 int main(void)
 {
-	char buf[150];
-	char showbuf[150];
     /* Enable the CPU Cache */
 	CPU_CACHE_Enable();
 
@@ -143,9 +127,6 @@ int main(void)
    /* Initialize all configured peripherals */
     MX_GPIO_Init();
     BSP_PB_Init(BUTTON_KEY, BUTTON_MODE_GPIO);
-
-    /* Configure on-board green LED */
-//    BSP_LED_Init(LED_GREEN);
 
     /* Initialize UART1 */
     uart1_init();
@@ -200,20 +181,17 @@ int main(void)
     /* Arducam Camera Setup */
     int camErr = initCamera();
 
-    uint32_t start, end;
     StartCapture();
     signed char * input = getInput();
     RGBbuf = (uint16_t *)&input[RES_H * RES_W * 4];
-    int t_mode = 0;
 
     /* bluetooth setup */
     MX_USART6_UART_Init();
-    uint8_t message[10] = "success\n";
+
     /* Infinity while loop */
     while (1)
     {
         /* Camera Read */
-        start = HAL_GetTick();
         ReadCapture();
         StartCapture();
 
