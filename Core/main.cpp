@@ -137,13 +137,18 @@ int main(void)
 		return 0;
 	}
 
-	static tflite::MicroMutableOpResolver<5> micro_op_resolver;
+	static tflite::MicroMutableOpResolver<10> micro_op_resolver;
 	micro_op_resolver.AddAveragePool2D(tflite::Register_AVERAGE_POOL_2D_INT8());
 	micro_op_resolver.AddConv2D(tflite::Register_CONV_2D_INT8());
 	micro_op_resolver.AddDepthwiseConv2D(
 	  tflite::Register_DEPTHWISE_CONV_2D_INT8());
 	micro_op_resolver.AddReshape();
+	micro_op_resolver.AddShape();
 	micro_op_resolver.AddSoftmax(tflite::Register_SOFTMAX_INT8());
+	micro_op_resolver.AddMaxPool2D(tflite::Register_MAX_POOL_2D_INT8());
+	micro_op_resolver.AddFullyConnected(tflite::Register_FULLY_CONNECTED_INT8());
+	micro_op_resolver.AddStridedSlice();
+	micro_op_resolver.AddPack();
 
 	static tflite::MicroInterpreter static_interpreter(
 			model, micro_op_resolver, tensor_arena, kTensorArenaSize);
@@ -244,20 +249,20 @@ void handle_output(uint8_t beeScore, uint8_t butterflyScore, uint8_t mothScore, 
 	max = (max > stinkScore) ? max : stinkScore;
 	if(max > 0.6) {
 		if(max == beeScore) {
-			HAL_UART_Transmit(&huart6, bee_msg, 4, 6);
+			HAL_UART_Transmit(&DebugUartHandler, bee_msg, 4, 6);
 		}
 		else if(max == butterflyScore) {
-			HAL_UART_Transmit(&huart6, butterfly_msg, 10, 12);
+			HAL_UART_Transmit(&DebugUartHandler, butterfly_msg, 10, 12);
 		}
 		else if(max == mothScore) {
-			HAL_UART_Transmit(&huart6, moth_msg, 5, 7);
+			HAL_UART_Transmit(&DebugUartHandler, moth_msg, 5, 7);
 		}
 		else if(max == stinkScore) {
-			HAL_UART_Transmit(&huart6, stink_msg, 6, 8);
+			HAL_UART_Transmit(&DebugUartHandler, stink_msg, 6, 8);
 		}
 	}
 	else {
-		HAL_UART_Transmit(&huart6, none_msg, 5, 7);
+		HAL_UART_Transmit(&DebugUartHandler, none_msg, 5, 7);
 	}
 }
 
@@ -302,7 +307,7 @@ static void uart1_init(void)
 	 */
 
 	DebugUartHandler.Instance        = DISCOVERY_COM1;
-	DebugUartHandler.Init.BaudRate   = 9600;
+	DebugUartHandler.Init.BaudRate   = 115200;
 	DebugUartHandler.Init.WordLength = UART_WORDLENGTH_8B;
 	DebugUartHandler.Init.StopBits   = UART_STOPBITS_1;
 	DebugUartHandler.Init.Parity     = UART_PARITY_NONE;
