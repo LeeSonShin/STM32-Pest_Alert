@@ -11,12 +11,12 @@
 #include <lcd_sine.h>
 #include "stm32746g_discovery.h"
 #include "sine_model.h"
-#include "saved_model.h"
-#include "tensorflow/lite/micro/kernels/all_ops_resolver.h"
-#include "tensorflow/lite/micro/micro_error_reporter.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
+#include "tensorflow/lite/micro/micro_log.h"
+#include "tensorflow/lite/micro/micro_mutable_op_resolver.h"
+#include "tensorflow/lite/micro/system_setup.h"
 #include "tensorflow/lite/schema/schema_generated.h"
-#include "tensorflow/lite/version.h"
+#include "saved_model.h"
 #include "camera.h"
 #include "main.h"
 #include "lcd.h"
@@ -42,19 +42,15 @@
 signed char out_int[OUTPUT_CH];
 uint16_t *RGBbuf;
 
-namespace
-{
-    tflite::ErrorReporter* error_reporter = nullptr;
-    const tflite::Model* model = nullptr;
-    tflite::MicroInterpreter* interpreter = nullptr;
-    TfLiteTensor* model_input = nullptr;
-    TfLiteTensor* model_output = nullptr;
+namespace {
+	const tflite::Model * model = nullptr;
+	tflite::MicroInterpreter * interpreter = nullptr;
+	TfLiteTensor * model_input = nullptr;
+	TfLiteTensor * model_output = nullptr;
 
-    // Create an area of memory to use for input, output, and intermediate arrays.
-    // Finding the minimum value for your model may require some trial and error.
-    constexpr uint32_t kTensorArenaSize = 2 * 1024;
-    uint8_t tensor_arena[kTensorArenaSize];
-} // namespace
+	constexpr int kTensorArenaSize = 200 * 1024;
+	alignas(16) static uint8_t tensor_arena[kTensorArenaSize];
+}
 
 // NOTE: extern is used because lcd.c also uses this variable.
 
@@ -65,7 +61,7 @@ UART_HandleTypeDef huart6;
 /* Private function prototypes -----------------------------------------------*/
 static void error_handler(void);
 static void uart1_init(void);
-void handle_output(tflite::ErrorReporter* error_reporter, uint8_t beeScore, uint8_t butterflyScore, uint8_t mothScore, uint8_t stinkScore);
+void handle_output(uint8_t beeScore, uint8_t butterflyScore, uint8_t mothScore, uint8_t stinkScore);
 signed char* getInput();
 static void MX_GPIO_Init(void);
 static void CPU_CACHE_Enable(void);
@@ -132,35 +128,32 @@ int main(void)
     /* Initialize LCD */
     lcdsetup();
     /* TfLite Initialization Code */
-  	static tflite::MicroErrorReporter micro_error_reporter;
-  	error_reporter = &micro_error_reporter;
-
-  	// Map the model into a usable data structure. This doesn't involve any
-  	// copying or parsing, it's a very lightweight operation.
     model = tflite::GetModel(saved_model);
+	if(model->version() != TFLITE_SCHEMA_VERSION) {
+		MicroPrintf(
+			"Model provided is schema verison %d not equal "
+			"to supported version %d.",
+			model->version(), TFLITE_SCHEMA_VERSION);
+		return 0;
+	}
 
-  	if(model->version() != TFLITE_SCHEMA_VERSION)
-  	{
-  		TF_LITE_REPORT_ERROR(error_reporter,
-  	                         "Model provided is schema version %d not equal "
-  	                         "to supported version %d.",
-  	                         model->version(), TFLITE_SCHEMA_VERSION);
-  	    return 0;
-  	}
+	static tflite::MicroMutableOpResolver<5> micro_op_resolver;
+	micro_op_resolver.AddAveragePool2D(tflite::Register_AVERAGE_POOL_2D_INT8());
+	micro_op_resolver.AddConv2D(tflite::Register_CONV_2D_INT8());
+	micro_op_resolver.AddDepthwiseConv2D(
+	  tflite::Register_DEPTHWISE_CONV_2D_INT8());
+	micro_op_resolver.AddReshape();
+	micro_op_resolver.AddSoftmax(tflite::Register_SOFTMAX_INT8());
 
-  	// This pulls in all the operation implementations we need.
-  	static tflite::ops::micro::AllOpsResolver resolver;
+	static tflite::MicroInterpreter static_interpreter(
+			model, micro_op_resolver, tensor_arena, kTensorArenaSize);
+	interpreter = &static_interpreter;
 
-  	// Build an interpreter to run the model with.
-  	static tflite::MicroInterpreter static_interpreter(model, resolver, tensor_arena, kTensorArenaSize, error_reporter);
-  	interpreter = &static_interpreter;
-  	// Allocate memory from the tensor_arena for the model's tensors.
-  	TfLiteStatus allocate_status = interpreter->AllocateTensors();
-  	if (allocate_status != kTfLiteOk)
-  	{
-  	    TF_LITE_REPORT_ERROR(error_reporter, "AllocateTensors() failed");
-  	    return 0;
-  	}
+	TfLiteStatus allocate_status = interpreter->AllocateTensors();
+	if(allocate_status != kTfLiteOk) {
+		MicroPrintf("AllocateTensors() failed");
+		return 0;
+	}
 
   	// Obtain pointers to the model's input and output tensors.
   	model_input = interpreter->input(0);
@@ -224,13 +217,12 @@ int main(void)
 		TfLiteStatus invoke_status = interpreter->Invoke();
 		if (invoke_status != kTfLiteOk)
 		{
-			TF_LITE_REPORT_ERROR(error_reporter, "Invoke failed");
+			MicroPrintf("Invoke failed");
 			return 0;
 		}
 
 		// 블루투스 통신을 이용하여 모델 출력을 애플리케이션으로 전송
-		handle_output(error_reporter,
-					  model_output->data.uint8[beeIndex],
+		handle_output(model_output->data.uint8[beeIndex],
 					  model_output->data.uint8[butterflyIndex],
 					  model_output->data.uint8[mothIndex],
 					  model_output->data.uint8[stinkIndex]);
@@ -238,7 +230,7 @@ int main(void)
 }
 
 
-void handle_output(tflite::ErrorReporter* error_reporter, uint8_t beeScore, uint8_t butterflyScore, uint8_t mothScore, uint8_t stinkScore)
+void handle_output(uint8_t beeScore, uint8_t butterflyScore, uint8_t mothScore, uint8_t stinkScore)
 {
 	uint8_t bee_msg[6] = "bee\n";
 	uint8_t butterfly_msg[12] = "butterfly\n";
@@ -612,7 +604,7 @@ static void CPU_CACHE_Enable(void) {
   * @retval None
   */
 void assert_failed(uint8_t *file, uint32_t line)
-{ 
+{
   /* User can add his own implementation to report the file name and line number,
      tex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
 }
