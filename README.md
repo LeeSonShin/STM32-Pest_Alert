@@ -40,6 +40,6 @@
 - [Pest_Alert Android Application](https://github.com/LeeSonShin/Pest_Alert_Application)
 - [Model Maker Notebook](https://github.com/LeeSonShin/Model_Maker)
 ### Reference
-- TinyML: Machine Learning with TensorFlow Lite on Arduino and Ultra-Low-Power Microcontrollers
+- [TinyML: Machine Learning with TensorFlow Lite on Arduino and Ultra-Low-Power Microcontrollers](https://www.amazon.com/TinyML-Learning-TensorFlow-Ultra-Low-Power-Microcontrollers/dp/1492052043)
 - [tinyengine](https://github.com/mit-han-lab/tinyengine) (Arducam Driver)
 - [TensorFlow Lite For Microcontrollers](https://www.tensorflow.org/lite/microcontrollers?hl=ko)
