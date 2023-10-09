@@ -48,7 +48,7 @@ namespace {
 	TfLiteTensor * model_input = nullptr;
 	TfLiteTensor * model_output = nullptr;
 
-	constexpr int kTensorArenaSize = 200 * 1024;
+	constexpr int kTensorArenaSize = 64 * 1024;
 	alignas(16) static uint8_t tensor_arena[kTensorArenaSize];
 }
 
@@ -124,7 +124,7 @@ int main(void)
 
     /* Initialize UART1 */
     uart1_init();
-
+    MicroPrintf("Point_1");
     /* Initialize LCD */
     lcdsetup();
     /* TfLite Initialization Code */
@@ -136,8 +136,8 @@ int main(void)
 			model->version(), TFLITE_SCHEMA_VERSION);
 		return 0;
 	}
-
-	static tflite::MicroMutableOpResolver<10> micro_op_resolver;
+	MicroPrintf("Point_2");
+	static tflite::MicroMutableOpResolver<14> micro_op_resolver;
 	micro_op_resolver.AddAveragePool2D(tflite::Register_AVERAGE_POOL_2D_INT8());
 	micro_op_resolver.AddConv2D(tflite::Register_CONV_2D_INT8());
 	micro_op_resolver.AddDepthwiseConv2D(
@@ -149,6 +149,12 @@ int main(void)
 	micro_op_resolver.AddFullyConnected(tflite::Register_FULLY_CONNECTED_INT8());
 	micro_op_resolver.AddStridedSlice();
 	micro_op_resolver.AddPack();
+	micro_op_resolver.AddPad(tflite::Register_PAD());
+	micro_op_resolver.AddAdd(tflite::Register_ADD_INT8());
+	micro_op_resolver.AddMean();
+	micro_op_resolver.AddQuantize();
+
+
 
 	static tflite::MicroInterpreter static_interpreter(
 			model, micro_op_resolver, tensor_arena, kTensorArenaSize);
@@ -159,6 +165,7 @@ int main(void)
 		MicroPrintf("AllocateTensors() failed");
 		return 0;
 	}
+	MicroPrintf("Point_3");
 
   	// Obtain pointers to the model's input and output tensors.
   	model_input = interpreter->input(0);
@@ -237,32 +244,38 @@ int main(void)
 
 void handle_output(uint8_t beeScore, uint8_t butterflyScore, uint8_t mothScore, uint8_t stinkScore)
 {
-	uint8_t bee_msg[6] = "bee\n";
-	uint8_t butterfly_msg[12] = "butterfly\n";
-	uint8_t moth_msg[7] = "moth\n";
-	uint8_t stink_msg[8] = "stink\n";
-	uint8_t none_msg[7] = "none\n";
+	uint8_t bee_msg[6] = "bee\r\n";
+	uint8_t butterfly_msg[12] = "butterfly\r\n";
+	uint8_t moth_msg[7] = "moth\r\n";
+	uint8_t stink_msg[8] = "stink\r\n";
+	uint8_t none_msg[7] = "none\r\n";
 
 	int max;
 	max = (beeScore > butterflyScore) ? beeScore : butterflyScore;
 	max = (max > mothScore) ? max : mothScore;
 	max = (max > stinkScore) ? max : stinkScore;
+
+	MicroPrintf("Bee: %d, Butterfly: %d, Moth: %d, Stink: %d\r\n", beeScore, butterflyScore, mothScore, stinkScore);
 	if(max > 0.6) {
 		if(max == beeScore) {
-			HAL_UART_Transmit(&DebugUartHandler, bee_msg, 4, 6);
+			HAL_UART_Transmit(&DebugUartHandler, bee_msg, 5, 6);
+
 		}
 		else if(max == butterflyScore) {
-			HAL_UART_Transmit(&DebugUartHandler, butterfly_msg, 10, 12);
+			HAL_UART_Transmit(&DebugUartHandler, butterfly_msg, 11, 12);
+
 		}
 		else if(max == mothScore) {
-			HAL_UART_Transmit(&DebugUartHandler, moth_msg, 5, 7);
+			HAL_UART_Transmit(&DebugUartHandler, moth_msg, 6, 7);
+
 		}
 		else if(max == stinkScore) {
-			HAL_UART_Transmit(&DebugUartHandler, stink_msg, 6, 8);
+			HAL_UART_Transmit(&DebugUartHandler, stink_msg, 7, 8);
+
 		}
 	}
 	else {
-		HAL_UART_Transmit(&DebugUartHandler, none_msg, 5, 7);
+		HAL_UART_Transmit(&DebugUartHandler, none_msg, 6, 7);
 	}
 }
 
