@@ -36,6 +36,9 @@
     - 디버깅을 위한 lcd 제어
     - model inference
     - 블루투스 통신을 활용하여 model output을 외부로 전송
+### Related Works
+- [Pest_Alert Android Application](https://github.com/LeeSonShin/Pest_Alert_Application)
+- [Model Maker Notebook](https://github.com/LeeSonShin/Model_Maker)
 ### Reference
 - TinyML: Machine Learning with TensorFlow Lite on Arduino and Ultra-Low-Power Microcontrollers
 - [tinyengine](https://github.com/mit-han-lab/tinyengine) (Arducam Driver)
