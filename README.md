@@ -1,5 +1,9 @@
 ## STM32-Pest_Alert : TensorFlow Lite model on STM32
 > 본 프로젝트는 STM32CubeIDE에서 생성한 TinyML 프로젝트이다. 해충 판별 TinyML모델을 이용하여 STM32F746G-DISCO 보드에서 edge computing을 통해 해충을 판별하며, 블루투스 통신을 통해 연결된 안드로이드 애플리케이션으로 탐지된 해충의 종류를 전송한다.
+### Hardware Information
+- 개발 보드 : [STM32F746G-DISCO](https://www.st.com/en/evaluation-tools/32f746gdiscovery.html)
+- 카메라 모듈 : [Arducam SPI Camera(OV2640)](https://www.arducam.com/spi-arduino-camera/)
+- 블루투스 모듈 : [FB755AC](https://www.devicemart.co.kr/goods/view?no=12419)
 ### Version Information
 - STM32CubeIDE : 1.5
 - Python : 3.7
