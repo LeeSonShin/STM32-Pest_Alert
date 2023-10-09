@@ -20,14 +20,14 @@
 |- /tensorflow
     |- /signal
     |- /tensorflow
-        |- lite
-            |- c
-            |- core
-            |- kernels
-            |- micro
-            |- schema
+        |- /lite
+            |- /c
+            |- /core
+            |- /kernels
+            |- /micro
+            |- /schema
 |- /Utilities
-    |- Fonts
+    |- /Fonts
 ```
 - `main.cpp`는 `Core`폴더 내부 있다.
 - `main.cpp`에서는 아래와 같은 동작을 한다.
