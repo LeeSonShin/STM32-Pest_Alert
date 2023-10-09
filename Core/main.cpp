@@ -2,7 +2,6 @@
   ******************************************************************************
   * @file    main.cpp
   * @author  LeeSonShin
-  * Code referenced from Fahad Mirza (fahadmirza8@gmail.com)
   * @brief   This file provides main program functions
   ******************************************************************************
   */
@@ -10,7 +9,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include <lcd_sine.h>
 #include "stm32746g_discovery.h"
-#include "sine_model.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/micro/micro_log.h"
 #include "tensorflow/lite/micro/micro_mutable_op_resolver.h"
