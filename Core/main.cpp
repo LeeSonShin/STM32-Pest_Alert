@@ -47,7 +47,7 @@ namespace {
 	TfLiteTensor * model_input = nullptr;
 	TfLiteTensor * model_output = nullptr;
 
-	constexpr int kTensorArenaSize = 150 * 1024;
+	constexpr int kTensorArenaSize = 230 * 1024;
 	alignas(16) static uint8_t tensor_arena[kTensorArenaSize];
 }
 
@@ -136,7 +136,7 @@ int main(void)
 		return 0;
 	}
 	MicroPrintf("Point_2");
-	static tflite::MicroMutableOpResolver<16> micro_op_resolver;
+	static tflite::MicroMutableOpResolver<17> micro_op_resolver;
 	micro_op_resolver.AddAveragePool2D(tflite::Register_AVERAGE_POOL_2D_INT8());
 	micro_op_resolver.AddConv2D(tflite::Register_CONV_2D_INT8());
 	micro_op_resolver.AddDepthwiseConv2D(
@@ -154,6 +154,8 @@ int main(void)
 	micro_op_resolver.AddQuantize();
 	micro_op_resolver.AddHardSwish();
 	micro_op_resolver.AddMul(tflite::Register_MUL());  //INT8()이 있는데 인식 안됨;
+
+	micro_op_resolver.AddConcatenation();
 
 
 
@@ -269,28 +271,32 @@ void handle_output(uint8_t beeScore, uint8_t butterflyScore, uint8_t mothScore, 
 	if(max > noneScore) {
 		if(max == beeScore) {
 			HAL_UART_Transmit(&huart6, bee_msg, 1, 6);
+			HAL_UART_Transmit(&DebugUartHandler, bee_msg, 1, 6);
 			sprintf(showbuf, "BEE      ");
 			displaystring(showbuf, 273, 10);
 
 		}
 		else if(max == butterflyScore) {
 			HAL_UART_Transmit(&huart6, butterfly_msg, 1, 12);
+			HAL_UART_Transmit(&DebugUartHandler, butterfly_msg, 1, 6);
 			sprintf(showbuf, "BUTTERFLY ");
 			displaystring(showbuf, 273, 10);
 		}
 		else if(max == mothScore) {
 			HAL_UART_Transmit(&huart6, moth_msg, 1, 7);
+			HAL_UART_Transmit(&DebugUartHandler, moth_msg, 1, 6);
 			sprintf(showbuf, "MOTH      ");
 			displaystring(showbuf, 273, 10);
 		}
 		else if(max == stinkScore) {
 			HAL_UART_Transmit(&huart6, stink_msg, 1, 8);
+			HAL_UART_Transmit(&DebugUartHandler, stink_msg, 1, 6);
 			sprintf(showbuf, "STINK    ");
 			displaystring(showbuf, 273, 10);
 		}
 	}
 	else {
-		//HAL_UART_Transmit(&huart6, none_msg, 1, 7);
+		HAL_UART_Transmit(&DebugUartHandler, none_msg, 1, 7);
 		sprintf(showbuf, "           ");
 		displaystring(showbuf, 273, 10);
 	}
