@@ -21,9 +21,9 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
-# define RES_W 80
-# define RES_H 80
-# define OUTPUT_CH 2
+# define RES_W 96
+# define RES_H 96
+//# define OUTPUT_CH 2
 # define BUTTON1_Pin GPIO_PIN_0
 # define BUTTON1_GPIO_Port GPIOA
 # define BUTTON2_Pin GPIO_PIN_10
@@ -34,10 +34,11 @@
 /*  해상도에 따른 버퍼 크기 설정
 * -------------------------
 * | 80  * 80   : 44800    |
+* | 96  * 96   : 64512	  |
 * | 128 * 128 : 114688    | */
- static signed char buffer[44800];
+ static signed char buffer[64512];
 
-signed char out_int[OUTPUT_CH];
+//signed char out_int[OUTPUT_CH];
 uint16_t *RGBbuf;
 
 namespace {
@@ -46,7 +47,7 @@ namespace {
 	TfLiteTensor * model_input = nullptr;
 	TfLiteTensor * model_output = nullptr;
 
-	constexpr int kTensorArenaSize = 128 * 1024;
+	constexpr int kTensorArenaSize = 150 * 1024;
 	alignas(16) static uint8_t tensor_arena[kTensorArenaSize];
 }
 
@@ -175,8 +176,8 @@ int main(void)
 	const int beeIndex = 0;
 	const int butterflyIndex = 1;
 	const int mothIndex = 2;
-	const int stinkIndex = 3;
-	const int noneIndex = 4;
+	const int stinkIndex = 4;
+	const int noneIndex = 3;
 
     // We are dividing the whole input range with the number of inference
     // per cycle we want to show to get the unit value. We will then multiply
@@ -213,9 +214,15 @@ int main(void)
             uint8_t green = (int32_t)input[index + 1] + 128;
             uint8_t blue = (int32_t)input[index + 2] + 128;
 
+            // for gray scale image
+//            uint8_t gray = (int32_t)(red * 0.2999 + 0.587 * green + 0.114 * blue);
+
+
             model_input->data.uint8[index] = red;
             model_input->data.uint8[index + 1] = green;
             model_input->data.uint8[index + 2] = blue;
+
+//            model_input->data.uint8[index] = gray;
 
             uint16_t b = (blue >> 3) & 0x1f;
             uint16_t g = ((green >> 2) & 0x3f) << 5;
@@ -224,7 +231,7 @@ int main(void)
             RGBbuf[j + RES_W * i] = (uint16_t)(r | g | b);
           }
         }
-        loadRGB565LCD(10, 10, RES_W, RES_W, RGBbuf, 3);
+        loadRGB565LCD(10, 10, RES_W, RES_W, RGBbuf, 2);
 
 		// Run inference, and report any error
 		TfLiteStatus invoke_status = interpreter->Invoke();
@@ -246,11 +253,11 @@ int main(void)
 
 void handle_output(uint8_t beeScore, uint8_t butterflyScore, uint8_t mothScore, uint8_t stinkScore, uint8_t noneScore)
 {
-	uint8_t bee_msg[6] = "bee\r\n";
-	uint8_t butterfly_msg[12] = "butterfly\r\n";
-	uint8_t moth_msg[7] = "moth\r\n";
-	uint8_t stink_msg[8] = "stink\r\n";
-	uint8_t none_msg[7] = "none\r\n";
+	uint8_t bee_msg[6] = "0";
+	uint8_t butterfly_msg[12] = "1";
+	uint8_t moth_msg[7] = "2";
+	uint8_t stink_msg[8] = "4";
+	uint8_t none_msg[7] = "3";
 
 	int max;
 	max = (beeScore > butterflyScore) ? beeScore : butterflyScore;
@@ -258,32 +265,32 @@ void handle_output(uint8_t beeScore, uint8_t butterflyScore, uint8_t mothScore, 
 	max = (max > stinkScore) ? max : stinkScore;
 	max = (max > noneScore) ? max : noneScore;
 	char showbuf[150];
-	MicroPrintf("Bee: %d, Butterfly: %d, Moth: %d, Stink: %d, None: %d\r\n", beeScore, butterflyScore, mothScore, stinkScore, noneScore);
+	//MicroPrintf("Bee: %d, Butterfly: %d, Moth: %d, Stink: %d, None: %d\r\n", beeScore, butterflyScore, mothScore, stinkScore, noneScore);
 	if(max > noneScore) {
 		if(max == beeScore) {
-			HAL_UART_Transmit(&DebugUartHandler, bee_msg, 5, 6);
+			HAL_UART_Transmit(&huart6, bee_msg, 1, 6);
 			sprintf(showbuf, "BEE      ");
 			displaystring(showbuf, 273, 10);
 
 		}
 		else if(max == butterflyScore) {
-			HAL_UART_Transmit(&DebugUartHandler, butterfly_msg, 11, 12);
+			HAL_UART_Transmit(&huart6, butterfly_msg, 1, 12);
 			sprintf(showbuf, "BUTTERFLY ");
 			displaystring(showbuf, 273, 10);
 		}
 		else if(max == mothScore) {
-			HAL_UART_Transmit(&DebugUartHandler, moth_msg, 6, 7);
+			HAL_UART_Transmit(&huart6, moth_msg, 1, 7);
 			sprintf(showbuf, "MOTH      ");
 			displaystring(showbuf, 273, 10);
 		}
 		else if(max == stinkScore) {
-			HAL_UART_Transmit(&DebugUartHandler, stink_msg, 7, 8);
+			HAL_UART_Transmit(&huart6, stink_msg, 1, 8);
 			sprintf(showbuf, "STINK    ");
 			displaystring(showbuf, 273, 10);
 		}
 	}
 	else {
-		HAL_UART_Transmit(&DebugUartHandler, none_msg, 6, 7);
+		//HAL_UART_Transmit(&huart6, none_msg, 1, 7);
 		sprintf(showbuf, "           ");
 		displaystring(showbuf, 273, 10);
 	}
